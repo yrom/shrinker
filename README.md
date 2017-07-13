@@ -17,7 +17,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'net.yrom.shrinker:0.1.0'
+        classpath 'net.yrom:shrinker:0.1.1'
     }
 }
 ```

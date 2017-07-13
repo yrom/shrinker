@@ -83,9 +83,12 @@ class InlineRTransform extends Transform {
             throw new UnsupportedOperationException('Unsupported incremental build!')
         }
         TransformOutputProvider outputProvider = transformInvocation.outputProvider
+        // ${buildType}/folders/${types-name}/${scopes-name}/test
+        def file = outputProvider.getContentLocation('test', getInputTypes(), getScopes(), Format.DIRECTORY)
+        def buildType = file.parentFile.parentFile.parentFile.parentFile.name;
         outputProvider.deleteAll()
         Collection<TransformInput> inputs = transformInvocation.inputs
-        if (config.inlineR) {
+        if (config.inlineR && buildType != 'debug') {
             def rSymbols = gatherRSymbols(inputs) as Map
             inputs.each { TransformInput input ->
                 processAllClasses(input, outputProvider, rSymbols)

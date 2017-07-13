@@ -8,19 +8,4 @@ dependencies {
     compile 'commons-io:commons-io:2.4'
     testCompile 'junit:junit:4.12'
 }
-apply plugin: 'maven-publish'
-
-group = 'net.yrom'
-version = '0.1.0'
-publishing {
-    repositories {
-        maven {
-            url "$rootProject.buildDir/repo"
-        }
-    }
-    publications {
-        maven(MavenPublication) {
-            from components.java
-        }
-    }
-}
+apply from: rootProject.file('publish.gradle')

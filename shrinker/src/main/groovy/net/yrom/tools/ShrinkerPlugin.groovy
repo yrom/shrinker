@@ -34,6 +34,6 @@ public class ShrinkerPlugin implements Plugin<Project> {
         }
         def android = project.extensions.getByType(AppExtension) as AppExtension
         ShrinkerExtension config = project.extensions.create("shrinker", ShrinkerExtension)
-        android.registerTransform(new InlineRTransform(config))
+        android.registerTransform new InlineRTransform(config)
     }
 }

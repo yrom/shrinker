@@ -31,13 +31,13 @@ class ClassTransform {
         this.rSymbols = rSymbols
     }
 
-    byte[] transform(byte[] origin) {
+    def byte[] transform(byte[] origin) {
         ClassReader reader = new ClassReader(origin)
         // don't pass reader to the writer.
         // or it will copy 'CONSTANT POOL' that contains no used entries to lead proguard running failed!
         ClassWriter writer = new ClassWriter(0)
         ClassVisitor visitor = new RClassVisitor(writer, rSymbols)
-        reader.accept(visitor, 0)
-        return writer.toByteArray()
+        reader.accept visitor, 0
+        writer.toByteArray()
     }
 }

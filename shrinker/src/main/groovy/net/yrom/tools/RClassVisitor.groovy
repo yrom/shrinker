@@ -25,7 +25,7 @@ import org.objectweb.asm.Opcodes
  * @author yrom.
  */
 @PackageScope
-class RClassVisitor extends ClassVisitor{
+class RClassVisitor extends ClassVisitor {
     String classname
     Map rSymbols
     RClassVisitor(ClassWriter cv, Map rSymbols) {
@@ -35,8 +35,8 @@ class RClassVisitor extends ClassVisitor{
 
     @Override
     void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-        classname = name;
-        ShrinkerPlugin.logger.info("processing class $name")
+        classname = name
+        ShrinkerPlugin.logger.info "processing class $name"
         super.visit(version, access, name, signature, superName, interfaces)
     }
 
@@ -44,7 +44,7 @@ class RClassVisitor extends ClassVisitor{
     FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
         if (access == 0x19 /*ACC_PUBLIC | ACC_STATIC | ACC_FINAL*/
                 && classname.endsWith('R$styleable') && value != null) {
-            ShrinkerPlugin.logger.debug("remove field $name $signature")
+            ShrinkerPlugin.logger.debug "remove field $name $signature"
             return null
         }
         return cv.visitField(access, name, desc, signature, value)
@@ -55,7 +55,7 @@ class RClassVisitor extends ClassVisitor{
         if (access == 0x19 /*ACC_PUBLIC | ACC_STATIC | ACC_FINAL*/
                 && !name.startsWith('android/')
                 && name ==~ /(\w+\/)+R\$[a-z]+/) {
-            ShrinkerPlugin.logger.debug("remove innerclass attribute $name")
+            ShrinkerPlugin.logger.debug "remove innerclass attribute $name"
             return
         }
         cv.visitInnerClass(name, outerName, innerName, access)
@@ -79,14 +79,14 @@ class RClassVisitor extends ClassVisitor{
                 def key = typeName + '.' + fieldName
                 if (rSymbols.containsKey(key)) {
                     //|| typeName ==~ /R\$(?!styleable)[a-z]+/
-                    Object value = rSymbols.get(key)
+                    Object value = rSymbols[key]
                     if (!(value instanceof Integer))
                         throw new UnsupportedOperationException()
 
-                    ShrinkerPlugin.logger.debug("repace $owner.$fieldName to 0x${Integer.toHexString(value)}")
-                    mv.visitLdcInsn(value)
+                    ShrinkerPlugin.logger.debug "repace $owner.$fieldName to 0x${Integer.toHexString(value)}"
+                    this.mv.visitLdcInsn value
                 } else {
-                    mv.visitFieldInsn(opcode, owner, fieldName, fieldDesc)
+                    this.mv.visitFieldInsn(opcode, owner, fieldName, fieldDesc)
                 }
 
             }

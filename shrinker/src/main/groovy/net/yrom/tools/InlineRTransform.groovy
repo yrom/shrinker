@@ -16,14 +16,11 @@ limitations under the License.
 package net.yrom.tools
 
 import com.android.build.api.transform.*
-import com.google.common.collect.ImmutableMap
 import com.google.common.collect.ImmutableSet
 import com.google.common.collect.Sets
-import groovy.io.FileType
 import groovy.transform.PackageScope
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
-import org.objectweb.asm.*
 
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
@@ -31,8 +28,6 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 import static com.android.build.api.transform.QualifiedContent.DefaultContentType.CLASSES
-import static org.objectweb.asm.ClassReader.*
-
 /**
  * @author yrom.
  */
@@ -91,7 +86,7 @@ class InlineRTransform extends Transform {
         outputProvider.deleteAll()
         Collection<TransformInput> inputs = transformInvocation.inputs
         if (config.inlineR && buildType != 'debug') {
-            def rSymbols = gatherRSymbols(inputs)
+            def rSymbols = new RSymbols().from(inputs)
             if (!rSymbols.isEmpty()) {
                 for (input in inputs) {
                     processAllClasses input, outputProvider, rSymbols
@@ -183,40 +178,5 @@ class InlineRTransform extends Transform {
             }
         }
     }
-
-    // parse R$**.class
-    static Map<String, Integer> gatherRSymbols(Collection<TransformInput> inputs) {
-        def symbols = [:] as Map<String, Integer>
-        inputs.each { TransformInput input ->
-            if (input.directoryInputs.isEmpty()) {
-                //TODO: should scan R.class from jar files?
-                return
-            }
-            // All aapt generated R classes are in the directory-input stream
-            input.directoryInputs.each { DirectoryInput dir ->
-                dir.file.eachFileRecurse FileType.FILES, { File it ->
-                    if (it.name ==~ /R\$[a-z]+\.class/) {
-                        String typeName = it.name - '.class'
-                        ClassReader reader = new ClassReader(it.bytes)
-                        ClassVisitor visitor = new ClassVisitor(Opcodes.ASM5) {
-                            @Override
-                            FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-                                // read constant value
-                                if (value instanceof Integer) {
-                                    def key = typeName + '.' + name
-                                    symbols[key]= value
-                                }
-                                return null
-                            }
-                        }
-                        reader.accept visitor, SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES
-                    }
-                }
-            }
-        }
-
-        return ImmutableMap.copyOf(symbols)
-    }
-
 
 }

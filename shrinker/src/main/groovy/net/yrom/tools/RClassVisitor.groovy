@@ -16,19 +16,16 @@ limitations under the License.
 package net.yrom.tools
 
 import groovy.transform.PackageScope
-import org.objectweb.asm.ClassVisitor
-import org.objectweb.asm.ClassWriter
-import org.objectweb.asm.FieldVisitor
-import org.objectweb.asm.MethodVisitor
-import org.objectweb.asm.Opcodes
+import org.objectweb.asm.*
+
 /**
  * @author yrom.
  */
 @PackageScope
 class RClassVisitor extends ClassVisitor {
     String classname
-    Map rSymbols
-    RClassVisitor(ClassWriter cv, Map rSymbols) {
+    Object rSymbols
+    RClassVisitor(ClassWriter cv, Object rSymbols) {
         super(Opcodes.ASM5, cv)
         this.rSymbols = rSymbols
     }
@@ -79,17 +76,24 @@ class RClassVisitor extends ClassVisitor {
                 def key = typeName + '.' + fieldName
                 if (rSymbols.containsKey(key)) {
                     //|| typeName ==~ /R\$(?!styleable)[a-z]+/
-                    Object value = rSymbols[key]
+                    Object value = rSymbols.get(key)
                     if (!(value instanceof Integer))
                         throw new UnsupportedOperationException()
 
                     ShrinkerPlugin.logger.debug "repace $owner.$fieldName to 0x${Integer.toHexString(value)}"
-                    this.mv.visitLdcInsn value
+                    pushInt(this.mv, value)
                 } else {
                     this.mv.visitFieldInsn(opcode, owner, fieldName, fieldDesc)
                 }
-
             }
+        }
+    }
+
+    static void pushInt(MethodVisitor mv, Integer i) {
+        if (0 <= i && i <= 5) {
+            mv.visitInsn(Opcodes.ICONST_0 + i) //  ICONST_0 ~ ICONST_5
+        } else {
+            mv.visitLdcInsn(i)
         }
     }
 }

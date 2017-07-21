@@ -25,9 +25,9 @@ import org.objectweb.asm.ClassWriter
  */
 @PackageScope
 class ClassTransform {
-    Map<String, Integer> rSymbols
+    Object rSymbols
 
-    ClassTransform(Map<String, Integer> rSymbols) {
+    ClassTransform(Object rSymbols) {
         this.rSymbols = rSymbols
     }
 

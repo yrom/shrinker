@@ -2,6 +2,7 @@ package net.yrom.tools;
 
 import com.android.build.api.transform.DirectoryInput;
 import com.android.build.api.transform.TransformInput;
+import com.google.common.collect.Maps;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -15,7 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,7 +30,7 @@ import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
  * @author yrom
  */
 public class RSymbols {
-    private Map<String, Integer> symbols = new HashMap<>(512);
+    private Map<String, Integer> symbols = Collections.emptyMap();
 
     public Integer get(String key) {
         return symbols.get(key);
@@ -55,8 +56,10 @@ public class RSymbols {
         if (paths.size() >= Runtime.getRuntime().availableProcessors() * 3) {
             // use parallel here!
             stream = paths.parallelStream();
+            symbols = Maps.newConcurrentMap();
         } else {
             stream = paths.stream();
+            symbols = Maps.newHashMap();
         }
         stream.filter(path -> rClassMatcher.matches(path.getFileName()))
                 .forEach(this::drainSymbols);

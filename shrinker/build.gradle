@@ -7,4 +7,6 @@ dependencies {
     compile 'org.ow2.asm:asm:5.0.4'
     compile 'commons-io:commons-io:2.4'
 }
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 apply from: rootProject.file('publish.gradle')

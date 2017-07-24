@@ -33,6 +33,24 @@ apply plugin: 'net.yrom.shrinker'
 
 **NOTE** `shrinker` plugin requires android gradle build tools version at least 2.3.0
 
+## Showcase
+Enable [`shrink code` option of proguard](https://developer.android.com/studio/build/shrink-code.html), and count methods by [dexcount-gradle-plugin](https://github.com/KeepSafe/dexcount-gradle-plugin)
+
+Before:
+
+> Total methods in app-release.apk: 124159 (189.45% used)  
+> Total fields in app-release.apk:  **104996 (160.21% used)**  
+> Methods remaining in app-release.apk: 0  
+> Fields remaining in app-release.apk:  0
+
+After:
+
+> Total methods in app-release.apk: 124113 (189.38% used)  
+> Total fields in app-release.apk:  **54093 (82.54% used)**  
+> Methods remaining in app-release.apk: 0  
+> Fields remaining in app-release.apk:  11442
+
+
 ## License
 ```
 Copyright 2017 Yrom

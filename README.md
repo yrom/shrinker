@@ -6,6 +6,8 @@ As of ADT 14, library project's R class are no longer declared resource as const
 
 ## Usage 
 
+![version](https://jitpack.io/v/net.yrom/shrinker.svg?style=flat-square) You can get `shrinker` from [jitpack](https://jitpack.io)
+
 To apply `shrinker` to your android application:
 
 **Step1.** Add it in your `buildscript` section of app's build.gradle
@@ -17,7 +19,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'net.yrom:shrinker:0.1.1'
+        classpath 'net.yrom:shrinker:0.1.5'
     }
 }
 ```
@@ -30,3 +32,20 @@ apply plugin: 'net.yrom.shrinker'
 ```
 
 **NOTE** `shrinker` plugin requires android gradle build tools version at least 2.3.0
+
+## License
+```
+Copyright 2017 Yrom
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```

@@ -20,12 +20,6 @@ import com.google.common.collect.ImmutableSet
 import com.google.common.collect.Sets
 import groovy.transform.PackageScope
 import org.apache.commons.io.FileUtils
-import org.apache.commons.io.IOUtils
-
-import java.util.jar.JarEntry
-import java.util.jar.JarOutputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 
 import static com.android.build.api.transform.QualifiedContent.DefaultContentType.CLASSES
 /**
@@ -88,10 +82,19 @@ class InlineRTransform extends Transform {
         if (config.inlineR && buildType != 'debug') {
             def rSymbols = new RSymbols().from(inputs)
             if (!rSymbols.isEmpty()) {
-                for (input in inputs) {
-                    processAllClasses input, outputProvider, rSymbols
-                }
-                ShrinkerPlugin.logger.lifecycle "${transformInvocation.context.path} transform consume ${System.currentTimeMillis() - start}ms"
+                InlineRProcessor.proceed(inputs,
+                        { QualifiedContent input ->
+                            def format
+                            if (input instanceof DirectoryInput) format = Format.DIRECTORY
+                            else if (input instanceof JarInput) format = Format.JAR
+                            else throw new UnsupportedOperationException("Unknown format of input " + input)
+                            def f = outputProvider.getContentLocation(input.name, input.contentTypes,
+                                    input.scopes, format)
+                            if (!f.parentFile.exists()) f.parentFile.mkdirs()
+                            return f.toPath()
+                        },
+                        new ClassTransform(rSymbols).transform)
+                ShrinkerPlugin.logger.lifecycle "${transformInvocation.context.path} consume ${System.currentTimeMillis() - start}ms"
                 return
             }
         }
@@ -112,71 +115,7 @@ class InlineRTransform extends Transform {
                 FileUtils.copyFile jarInput.file, dest
             }
         }
-        ShrinkerPlugin.logger.info "${transformInvocation.context.path} copy files take ${System.currentTimeMillis() - start} ms"
-    }
-
-    static void processAllClasses(TransformInput input, TransformOutputProvider outputProvider, rSymbols) {
-        def classTransform = new ClassTransform(rSymbols)
-        input.directoryInputs.each { DirectoryInput dir ->
-            File srcFolder = dir.file
-            ShrinkerPlugin.logger.info 'Processing folder ' + srcFolder
-            File destFolder = outputProvider.getContentLocation(dir.name, dir.contentTypes,
-                    dir.scopes, Format.DIRECTORY);
-            copy(srcFolder, destFolder, classTransform)
-        }
-        input.jarInputs.each { JarInput jarInput ->
-            ShrinkerPlugin.logger.info 'Processing jar ' + jarInput.file.absolutePath
-            File dest = outputProvider.getContentLocation(jarInput.name, jarInput.contentTypes,
-                    jarInput.scopes, Format.JAR)
-            ZipInputStream zis = null
-            JarOutputStream jarOutputStream = null
-            try {
-                zis = new ZipInputStream(FileUtils.openInputStream(jarInput.file))
-                jarOutputStream = new JarOutputStream(FileUtils.openOutputStream(dest))
-                ZipEntry entry
-                while ((entry = zis.getNextEntry()) != null) {
-                    if (entry.isDirectory()) continue
-                    String name = entry.name
-                    if (!name.endsWith('.class')) {
-                        continue
-                    }
-                    JarEntry newEntry
-                    if (entry.method == ZipEntry.STORED) {
-                        newEntry = new JarEntry(entry)
-                    } else {
-                        newEntry = new JarEntry(name)
-                    }
-                    jarOutputStream.putNextEntry newEntry
-                    byte[] bytes = classTransform.transform IOUtils.toByteArray(zis)
-                    jarOutputStream.write bytes
-                    jarOutputStream.closeEntry()
-                    zis.closeEntry()
-                }
-            } catch (Exception e) {
-                throw new IOException('Failed to process jar ' + jarInput.file.absolutePath, e)
-            } finally {
-                IOUtils.closeQuietly zis
-                IOUtils.closeQuietly jarOutputStream
-            }
-        }
-    }
-
-    static void copy(File src, File dest, ClassTransform classFilter) {
-        for (File file : src.listFiles()) {
-            if (file.isDirectory()) {
-                copy file, new File(dest, file.name), classFilter
-            } else {
-                String name = file.name
-                // find R.class or R$**.class
-                if (name ==~ /R\.class|R\$(?!styleable)[a-z]+\.class/) {
-                    ShrinkerPlugin.logger.info ' ignored file ' + file.absolutePath
-                } else {
-                    byte[] bytes = classFilter.transform(file.bytes)
-                    File destFile = new File(dest, name)
-                    FileUtils.writeByteArrayToFile destFile, bytes
-                }
-            }
-        }
+        ShrinkerPlugin.logger.info "${transformInvocation.context.path} copy files ${System.currentTimeMillis() - start} ms"
     }
 
 }

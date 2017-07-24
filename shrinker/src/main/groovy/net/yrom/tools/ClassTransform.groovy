@@ -20,6 +20,8 @@ import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
 
+import java.util.function.Function
+
 /**
  * @author yrom.
  */
@@ -31,7 +33,7 @@ class ClassTransform {
         this.rSymbols = rSymbols
     }
 
-    def byte[] transform(byte[] origin) {
+    def byte[] _transform(byte[] origin) {
         ClassReader reader = new ClassReader(origin)
         // don't pass reader to the writer.
         // or it will copy 'CONSTANT POOL' that contains no used entries to lead proguard running failed!
@@ -40,4 +42,11 @@ class ClassTransform {
         reader.accept visitor, 0
         writer.toByteArray()
     }
+    def transform = new Function<byte[], byte[]>() {
+        @Override
+        byte[] apply(byte[] origin) {
+            return ClassTransform.this._transform(origin)
+        }
+    }
+
 }

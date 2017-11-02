@@ -24,6 +24,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -104,6 +105,7 @@ final class InlineRProcessor {
         try (ZipInputStream in = new ZipInputStream(new BufferedInputStream(Files.newInputStream(src)));
              JarOutputStream out = new JarOutputStream(new BufferedOutputStream(Files.newOutputStream(dst)))) {
             ZipEntry entry;
+            CRC32 crc = new CRC32();
             while ((entry = in.getNextEntry()) != null) {
                 if (entry.isDirectory()) continue;
                 String name = entry.getName();
@@ -111,22 +113,23 @@ final class InlineRProcessor {
                     // skip
                     continue;
                 }
-                JarEntry newEntry;
-                if (entry.getMethod() == ZipEntry.STORED) {
-                    newEntry = new JarEntry(entry);
-                } else {
-                    newEntry = new JarEntry(name);
-                }
+                byte[] bytes = classTransform.apply(IOUtils.toByteArray(in));
+
+                JarEntry newEntry = new JarEntry(name);
+                newEntry.setMethod(ZipEntry.STORED); // chose STORED method
+                newEntry.setSize(bytes.length);
+                crc.reset();
+                crc.update(bytes);
+                newEntry.setCrc(crc.getValue());
                 // put new entry
                 out.putNextEntry(newEntry);
-                byte[] bytes = classTransform.apply(IOUtils.toByteArray(in));
                 // write bytes of entry
                 out.write(bytes);
                 out.closeEntry();
                 in.closeEntry();
             }
         } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new UncheckedIOException("Error occurred on transforming jarfile : " + src, e);
         }
     }
 }

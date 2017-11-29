@@ -1,135 +1,73 @@
+/*
+ * Copyright (c) 2017 Yrom Wang
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package net.yrom.tools;
 
-import com.android.build.api.transform.DirectoryInput;
-import com.android.build.api.transform.JarInput;
 import com.android.build.api.transform.QualifiedContent;
 import com.android.build.api.transform.TransformInput;
 
-import org.apache.commons.io.IOUtils;
-import org.gradle.api.logging.Logger;
-import org.gradle.api.logging.Logging;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
 import java.util.Collection;
 import java.util.function.Function;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.CRC32;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
-import groovy.lang.Closure;
 
 /**
  * @author yrom
  */
-final class InlineRProcessor {
-    private static final Logger log = Logging.getLogger(InlineRProcessor.class);
-    private InlineRProcessor() {}
+final class InlineRProcessor implements Processor {
+    private Collection<TransformInput> inputs;
+    private Function<QualifiedContent, Path> getTargetPath;
+    private Function<byte[], byte[]> transform;
 
-    static void proceed(Collection<TransformInput> inputs,
-            Closure<Path> getTargetPath,
-            Function<byte[], byte[]> transform) {
+    InlineRProcessor(Collection<TransformInput> inputs,
+                     Function<byte[], byte[]> transform,
+                     Function<QualifiedContent, Path> getTargetPath) {
+        this.inputs = inputs;
+        this.getTargetPath = getTargetPath;
+        this.transform = transform;
+    }
+
+    @Override
+    public void proceed() {
         Stream.concat(
-                streamOf(inputs, TransformInput::getDirectoryInputs),
-                streamOf(inputs, TransformInput::getJarInputs))
-                .forEach((QualifiedContent input) -> {
-                    long start = System.currentTimeMillis();
+                streamOf(inputs, TransformInput::getDirectoryInputs).map(input -> {
                     Path src = input.getFile().toPath();
-                    Path dst = getTargetPath.call(input);
-                    if (input instanceof DirectoryInput) {
-                        transformDir(src, dst, transform);
-                    } else if (input instanceof JarInput) {
-                        transformJar(src, dst, transform);
-                    } else {
-                        throw new RuntimeException();
-                    }
-                    log.info((System.currentTimeMillis() - start) + "ms " + src);
-                });
+                    Path dst = getTargetPath.apply(input);
+                    return new DirProcessor(transform, src, dst);
+                }),
+                streamOf(inputs, TransformInput::getJarInputs).map(input -> {
+                    Path src = input.getFile().toPath();
+                    Path dst = getTargetPath.apply(input);
+                    return new JarProcessor(transform, src, dst);
+                })
+        ).forEach(Processor::proceed);
     }
 
     private static <T extends QualifiedContent> Stream<T> streamOf(
             Collection<TransformInput> inputs,
             Function<TransformInput, Collection<T>> mapping) {
         Collection<T> list = inputs.stream()
-                    .map(mapping)
-                    .flatMap(Collection::stream)
-                    .collect(Collectors.toList());
+                .map(mapping)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
         if (list.size() >= Runtime.getRuntime().availableProcessors())
             return list.parallelStream();
         else
             return list.stream();
     }
 
-    private static PathMatcher CASE_R_FILE
-            = FileSystems.getDefault().getPathMatcher("regex:^R\\.class|R\\$(?!styleable)[a-z]+\\.class$");
-
-    private static DirectoryStream.Filter<Path> CLASS_TRANSFORM_FILTER
-            = path -> Files.isDirectory(path)
-                    || (Files.isRegularFile(path) && !CASE_R_FILE.matches(path.getFileName()));
-
-    private static void transformDir(Path src, Path dest, Function<byte[], byte[]> classTransform) {
-        try {
-            for (Path file : Files.newDirectoryStream(src, CLASS_TRANSFORM_FILTER)) {
-                String name = file.getFileName().toString();
-                Path target = dest.resolve(name);
-                if (Files.isDirectory(file)) {
-                    transformDir(file, target, classTransform);
-                } else if (Files.isRegularFile(file)) {
-                    log.debug("transform class {}...", file);
-                    byte[] bytes = classTransform.apply(Files.readAllBytes(file));
-                    if (Files.notExists(dest)) {
-                        Files.createDirectories(dest);
-                    }
-                    Files.write(target, bytes);
-                }
-            }
-
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void transformJar(Path src, Path dst, Function<byte[], byte[]> classTransform) {
-        if (Files.notExists(src)) throw new IllegalArgumentException("No such file " + src);
-        try (ZipInputStream in = new ZipInputStream(new BufferedInputStream(Files.newInputStream(src)));
-             JarOutputStream out = new JarOutputStream(new BufferedOutputStream(Files.newOutputStream(dst)))) {
-            ZipEntry entry;
-            CRC32 crc = new CRC32();
-            while ((entry = in.getNextEntry()) != null) {
-                if (entry.isDirectory()) continue;
-                String name = entry.getName();
-                if (!name.endsWith(".class")) {
-                    // skip
-                    continue;
-                }
-                byte[] bytes = classTransform.apply(IOUtils.toByteArray(in));
-
-                JarEntry newEntry = new JarEntry(name);
-                newEntry.setMethod(ZipEntry.STORED); // chose STORED method
-                newEntry.setSize(bytes.length);
-                crc.reset();
-                crc.update(bytes);
-                newEntry.setCrc(crc.getValue());
-                // put new entry
-                out.putNextEntry(newEntry);
-                // write bytes of entry
-                out.write(bytes);
-                out.closeEntry();
-                in.closeEntry();
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Error occurred on transforming jarfile : " + src, e);
-        }
-    }
 }

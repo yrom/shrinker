@@ -18,6 +18,7 @@ package net.yrom.tools;
 
 import com.google.common.collect.ImmutableList;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
 import java.io.ByteArrayInputStream;
@@ -112,6 +113,9 @@ class JarProcessor extends ClassesProcessor {
     }
 
     private byte[] readByteArray(ZipInputStream zip, int expected) throws IOException {
+        if (expected == -1) { // unknown size
+            return IOUtils.toByteArray(zip);
+        }
         final byte[] bytes = new byte[expected];
         int read = 0;
         do {

@@ -20,12 +20,7 @@ import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.DirectoryIteratorException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
+import java.nio.file.*;
 import java.util.List;
 import java.util.function.Function;
 
@@ -40,7 +35,6 @@ class DirProcessor extends ClassesProcessor {
     private static DirectoryStream.Filter<Path> CLASS_TRANSFORM_FILTER =
             path -> Files.isDirectory(path)
                     || (Files.isRegularFile(path)
-                    && path.getFileName().endsWith(".class")
                     && !CASE_R_FILE.matches(path.getFileName()));
 
     DirProcessor(Function<byte[], byte[]> classTransform, Path src, Path dst) {
@@ -63,13 +57,18 @@ class DirProcessor extends ClassesProcessor {
         if (Files.isDirectory(source)) {
             new DirProcessor(classTransform, source, target).proceed();
         } else if (Files.isRegularFile(source)) {
-            log.debug("transform class {}... ", source);
+            log.debug("transform file {}... ", source);
             try {
                 if (Files.notExists(dst)) {
                     Files.createDirectories(dst);
                 }
-                byte[] bytes = classTransform.apply(Files.readAllBytes(source));
-                Files.write(target, bytes);
+                if (source.getFileName().toString().endsWith(".class")) {
+                    byte[] bytes = classTransform.apply(Files.readAllBytes(source));
+                    Files.write(target, bytes);
+                } else {
+                    // copy non-class file!
+                    Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+                }
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             } catch (Exception e) {

@@ -38,7 +38,10 @@ class DirProcessor extends ClassesProcessor {
             FileSystems.getDefault().getPathMatcher("regex:^R\\.class|R\\$(?!styleable)[a-z]+\\.class$");
 
     private static DirectoryStream.Filter<Path> CLASS_TRANSFORM_FILTER =
-            path -> Files.isDirectory(path) || (Files.isRegularFile(path) && !CASE_R_FILE.matches(path.getFileName()));
+            path -> Files.isDirectory(path)
+                    || (Files.isRegularFile(path)
+                    && path.getFileName().endsWith(".class")
+                    && !CASE_R_FILE.matches(path.getFileName()));
 
     DirProcessor(Function<byte[], byte[]> classTransform, Path src, Path dst) {
         super(classTransform, src, dst);
@@ -69,6 +72,9 @@ class DirProcessor extends ClassesProcessor {
                 Files.write(target, bytes);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
+            } catch (Exception e) {
+                log.warn("error occurred on " + source, e);
+                throw e;
             }
         }
     }

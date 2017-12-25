@@ -19,7 +19,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'net.yrom:shrinker:0.2.4'
+        classpath 'net.yrom:shrinker:0.2.6'
     }
 }
 ```
@@ -31,7 +31,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'net.yrom.shrinker'
 ```
 
-**NOTE** `shrinker` plugin requires android gradle build tools version at least 3.0.0
+**NOTE** that `shrinker` plugin requires android gradle build tools version at least 3.0.0
 
 ## Showcase
 Enable [`shrink code` option of proguard](https://developer.android.com/studio/build/shrink-code.html), and count methods by [dexcount-gradle-plugin](https://github.com/KeepSafe/dexcount-gradle-plugin)

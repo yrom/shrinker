@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 import java.io.IOException;
@@ -31,14 +32,15 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.objectweb.asm.ClassReader.SKIP_CODE;
 import static org.objectweb.asm.ClassReader.SKIP_DEBUG;
 import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
 
@@ -46,7 +48,13 @@ import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
  * @author yrom
  */
 class RSymbols {
+    /**
+     * default package!
+     */
+    static final String R_STYLEABLES_CLASS_NAME = "R$styleable";
+
     private Map<String, Integer> symbols = Collections.emptyMap();
+    private Map<String, int[]> styleables = Maps.newHashMap();
 
     public Integer get(String key) {
         return symbols.get(key);
@@ -57,7 +65,11 @@ class RSymbols {
     }
 
     public boolean isEmpty() {
-        return symbols.isEmpty();
+        return symbols.isEmpty() && styleables.isEmpty();
+    }
+
+    public Map<String, int[]> getStyleables() {
+        return Collections.unmodifiableMap(styleables);
     }
 
     public RSymbols from(Collection<TransformInput> inputs) {
@@ -97,12 +109,75 @@ class RSymbols {
                 // read constant value
                 if (value instanceof Integer) {
                     String key = typeName + '.' + name;
-                    symbols.putIfAbsent(key, (Integer) value);
+                    Integer old = symbols.get(key);
+                    if (old != null && !old.equals(value)) {
+                        throw new IllegalStateException("Value of " + key + " mismatched! "
+                                + "Excepted 0x" + Integer.toHexString(old)
+                                + " but was 0x" + Integer.toHexString((Integer) value));
+                    } else {
+                        symbols.put(key, (Integer) value);
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                if (access == Opcodes.ACC_STATIC && "<clinit>".equals(name)) {
+
+                    return new MethodVisitor(Opcodes.ASM5) {
+                        int[] current = null;
+                        LinkedList<Integer> intStack = new LinkedList<>();
+
+                        @Override
+                        public void visitIntInsn(int opcode, int operand) {
+                            if (opcode == Opcodes.NEWARRAY && operand == Opcodes.T_INT) {
+                                current = new int[intStack.pop()];
+                            } else if (opcode == Opcodes.BIPUSH) {
+                                intStack.push(operand);
+                            }
+                        }
+
+                        @Override
+                        public void visitLdcInsn(Object cst) {
+                            if (cst instanceof Integer) {
+                                intStack.push((Integer) cst);
+                            }
+                        }
+
+                        @Override
+                        public void visitInsn(int opcode) {
+                            if (opcode >= Opcodes.ICONST_0 && opcode <= Opcodes.ICONST_5) {
+                                intStack.push(opcode - Opcodes.ICONST_0);
+                            } else if (opcode == Opcodes.IASTORE) {
+                                int value = intStack.pop();
+                                int index = intStack.pop();
+                                current[index] = value;
+                            }
+                        }
+
+                        @Override
+                        public void visitFieldInsn(int opcode, String owner, String name, String desc) {
+                            if (opcode == Opcodes.PUTSTATIC) {
+                                int[] old = styleables.get(name);
+                                if (old != null && old.length != current.length && !Arrays.equals(old, current)) {
+                                    throw new IllegalStateException("Value of styleable." + name + " mismatched! "
+                                            + "Excepted " + Arrays.toString(old)
+                                            + " but was " + Arrays.toString(current));
+                                } else {
+                                    styleables.put(name, current);
+                                }
+                                current = null;
+                                intStack.clear();
+                            }
+                        }
+                    };
                 }
                 return null;
             }
         };
-        new ClassReader(bytes).accept(visitor, SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES);
+
+        new ClassReader(bytes).accept(visitor, SKIP_DEBUG | SKIP_FRAMES);
     }
 
     private Stream<Path> toStream(DirectoryInput dir) {

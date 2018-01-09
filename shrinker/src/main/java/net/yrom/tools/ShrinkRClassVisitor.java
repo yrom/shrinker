@@ -51,22 +51,11 @@ class ShrinkRClassVisitor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-        if (access == 0x19 /*ACC_PUBLIC | ACC_STATIC | ACC_FINAL*/
-                && classname.endsWith("R$styleable")
-                && value != null) {
-            logger.debug("remove visit field {} {} of {}", name, value, classname);
-            return null;
-        }
         return cv.visitField(access, name, desc, signature, value);
     }
 
     @Override
     public void visitInnerClass(String name, String outerName, String innerName, int access) {
-        if (access == 0x19 /*ACC_PUBLIC | ACC_STATIC | ACC_FINAL*/
-                && rClassPattern.matcher(name).matches()) {
-            logger.debug("remove visit inner class {} in {}", name, classname);
-            return;
-        }
         cv.visitInnerClass(name, outerName, innerName, access);
     }
 
@@ -94,6 +83,8 @@ class ShrinkRClassVisitor extends ClassVisitor {
                         logger.debug("replace {}.{} to 0x{}", owner, fieldName, Integer.toHexString(value));
                     }
                     pushInt(this.mv, value);
+                } else if (owner.endsWith("/R$styleable")) { // replace all */R$styleable ref!
+                    this.mv.visitFieldInsn(opcode, RSymbols.R_STYLEABLES_CLASS_NAME, fieldName, fieldDesc);
                 } else {
                     this.mv.visitFieldInsn(opcode, owner, fieldName, fieldDesc);
                 }
@@ -101,9 +92,13 @@ class ShrinkRClassVisitor extends ClassVisitor {
         };
     }
 
-    private static void pushInt(MethodVisitor mv, Integer i) {
+    private static void pushInt(MethodVisitor mv, int i) {
         if (0 <= i && i <= 5) {
             mv.visitInsn(Opcodes.ICONST_0 + i); //  ICONST_0 ~ ICONST_5
+        } else if (i <= Byte.MAX_VALUE) {
+            mv.visitIntInsn(Opcodes.BIPUSH, i);
+        } else if (i <= Short.MAX_VALUE) {
+            mv.visitIntInsn(Opcodes.SIPUSH, i);
         } else {
             mv.visitLdcInsn(i);
         }

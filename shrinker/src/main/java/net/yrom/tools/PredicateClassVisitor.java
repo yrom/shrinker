@@ -42,8 +42,8 @@ class PredicateClassVisitor extends ClassVisitor {
     }
 
     @Override
-    public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-        attemptToVisitR = name.endsWith("R$styleable");
+    public void visit(int version, int access, String name, String signature,
+                      String superName, String[] interfaces) {
     }
 
     @Override

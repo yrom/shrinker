@@ -1,1 +1,1 @@
-include ':shrinker'
+include ':shrinker', ':test'

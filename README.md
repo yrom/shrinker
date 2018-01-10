@@ -1,8 +1,6 @@
 # Shrinker
 
-`Shrinker` will remove all R.class and R\$\*\*.class (except R\$styleable.class) and all constant integer fields will be inlined by [`asm`](http://asm.ow2.org/) and [`transform-api`](http://tools.android.com/tech-docs/new-build-system/transform-api). 
-
-As of ADT 14, library project's R class are no longer declared resource as constant filelds. So that we will build a huge android project output apk with as many fields in dex as number of the android library dependencies.
+`Shrinker` will remove all R.class and R\$\*\*.class  and all constant integer fields will be inlined by [`asm`](http://asm.ow2.org/) and [`transform-api`](http://tools.android.com/tech-docs/new-build-system/transform-api). 
 
 ## Usage 
 
@@ -19,7 +17,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'net.yrom:shrinker:0.2.6'
+        classpath 'net.yrom:shrinker:0.2.7'
     }
 }
 ```
@@ -31,27 +29,42 @@ apply plugin: 'com.android.application'
 apply plugin: 'net.yrom.shrinker'
 ```
 
-**NOTE** that `shrinker` plugin requires android gradle build tools version at least 3.0.0
+**NOTE** that `shrinker` plugin requires android gradle build tools version at least 3.0.0 and it will be disabled if run in debug build.
 
-## Showcase
-Enable [`shrink code` option of proguard](https://developer.android.com/studio/build/shrink-code.html), and count methods by [dexcount-gradle-plugin](https://github.com/KeepSafe/dexcount-gradle-plugin)
+### Show case
+There is a little [test](tree/master/test) application which depends on so many support libraries, would show how many fields `shrinked`. 
 
-Before:
+Run with `shrinker`:
+```
+./gradlew :test:assembleRelease -PENABLE_SHRINKER
+```
 
-> Total methods in app-release.apk: 124159 (189.45% used)  
-> Total fields in app-release.apk:  **104996 (160.21% used)**  
-> Methods remaining in app-release.apk: 0  
-> Fields remaining in app-release.apk:  0
+Run with `removeUnusedCode`: 
+```groovy
+android {
+    buildTypes {
+        release {
+            ...
+            postprocessing {
+                removeUnusedCode = true
+            }
+        }
+    }
+    ...
+}
+```
 
-After:
+Content below counts by [dexcount-gradle-plugin](https://github.com/KeepSafe/dexcount-gradle-plugin)
 
-> Total methods in app-release.apk: 124113 (189.38% used)  
-> Total fields in app-release.apk:  **54093 (82.54% used)**  
-> Methods remaining in app-release.apk: 0  
-> Fields remaining in app-release.apk:  11442
-
+| options                     | methods | fields | classes |
+| --------------------------- | ------- | ------ | ------- |
+| origin                      | 22164   | 14367  | 2563    |
+| shrinker                    | 21979   | 7805   | 2392    |
+| removeUnusedCode            | 11338   | 6655   | 1296    |
+| shrinker & removeUnusedCode | 11335   | 3302   | 1274    |
 
 ## License
+
 ```
 Copyright 2017 Yrom
 

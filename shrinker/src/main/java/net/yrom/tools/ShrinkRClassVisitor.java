@@ -56,6 +56,11 @@ class ShrinkRClassVisitor extends ClassVisitor {
 
     @Override
     public void visitInnerClass(String name, String outerName, String innerName, int access) {
+        if (access == 0x19 /*ACC_PUBLIC | ACC_STATIC | ACC_FINAL*/
+                && rClassPattern.matcher(name).matches()) {
+            logger.debug("remove visit inner class {} in {}", name, classname);
+            return;
+        }
         cv.visitInnerClass(name, outerName, innerName, access);
     }
 

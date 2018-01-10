@@ -96,14 +96,15 @@ class InlineRTransform extends Transform {
         }
         long start = System.currentTimeMillis();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
-        // ${buildType}/folders/${types-name}/${scopes-name}/test
-        File file = outputProvider.getContentLocation("test", this.getInputTypes(), this.getScopes(), Format.DIRECTORY);
-        String buildType = file.getParentFile().getParentFile().getParentFile().getParentFile().getName();
+        // ${buildType}/folders/${types-name}/${scopes-name}/styleables
+        File styleables = outputProvider.getContentLocation("styleables", this.getInputTypes(), this.getScopes(), Format.DIRECTORY);
+        String buildType = styleables.getParentFile().getParentFile().getParentFile().getParentFile().getName();
         outputProvider.deleteAll();
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         if (config.inlineR && !Objects.equals(buildType, "debug")) {
             RSymbols rSymbols = new RSymbols().from(inputs);
             if (!rSymbols.isEmpty()) {
+                new WriteStyleablesProcessor(rSymbols, styleables).proceed();
                 Function<QualifiedContent, Path> call = input -> {
                     Format format;
                     if (input instanceof DirectoryInput) {

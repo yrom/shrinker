@@ -30,7 +30,7 @@ import java.util.function.Function;
  */
 class DirProcessor extends ClassesProcessor {
     private static PathMatcher CASE_R_FILE =
-            FileSystems.getDefault().getPathMatcher("regex:^R\\.class|R\\$(?!styleable)[a-z]+\\.class$");
+            FileSystems.getDefault().getPathMatcher("regex:^R\\.class|R\\$[a-z]+\\.class$");
 
     private static DirectoryStream.Filter<Path> CLASS_TRANSFORM_FILTER =
             path -> Files.isDirectory(path)

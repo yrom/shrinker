@@ -22,7 +22,6 @@ import org.objectweb.asm.ClassWriter;
 
 import java.util.function.Function;
 
-import static org.objectweb.asm.ClassReader.SKIP_CODE;
 import static org.objectweb.asm.ClassReader.SKIP_DEBUG;
 import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
 
@@ -40,7 +39,7 @@ class ClassTransform implements Function<byte[], byte[]> {
     public byte[] apply(byte[] origin) {
         ClassReader reader = new ClassReader(origin);
         PredicateClassVisitor precondition = new PredicateClassVisitor();
-        reader.accept(precondition, SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES);
+        reader.accept(precondition, SKIP_DEBUG | SKIP_FRAMES);
         if (!precondition.isAttemptToVisitR()) {
             return origin;
         }

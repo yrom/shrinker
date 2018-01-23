@@ -20,7 +20,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
-import java.util.regex.Pattern;
+import static net.yrom.tools.ShrinkRClassVisitor.isRClass;
 
 
 /**
@@ -30,7 +30,6 @@ import java.util.regex.Pattern;
  * @version 2017/11/29
  */
 class PredicateClassVisitor extends ClassVisitor {
-    private final Pattern rClassPattern = ShrinkRClassVisitor.rClassPattern;
     private boolean attemptToVisitR;
 
     PredicateClassVisitor() {
@@ -41,16 +40,12 @@ class PredicateClassVisitor extends ClassVisitor {
         return attemptToVisitR;
     }
 
-    @Override
-    public void visit(int version, int access, String name, String signature,
-                      String superName, String[] interfaces) {
-    }
 
     @Override
     public void visitInnerClass(String name, String outerName, String innerName, int access) {
         if (!attemptToVisitR
                 && access == 0x19 /*ACC_PUBLIC | ACC_STATIC | ACC_FINAL*/
-                && rClassPattern.matcher(name).matches()) {
+                && isRClass(name)) {
             attemptToVisitR = true;
         }
     }
@@ -70,7 +65,8 @@ class PredicateClassVisitor extends ClassVisitor {
                         || owner.startsWith("java/lang/")) {
                     return;
                 }
-                attemptToVisitR = rClassPattern.matcher(owner).matches();
+
+                attemptToVisitR = isRClass(owner);
             }
         };
     }

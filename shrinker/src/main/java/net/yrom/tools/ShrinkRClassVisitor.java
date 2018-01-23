@@ -23,8 +23,6 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
-import java.util.regex.Pattern;
-
 import static net.yrom.tools.ShrinkerPlugin.logger;
 
 /**
@@ -35,7 +33,15 @@ class ShrinkRClassVisitor extends ClassVisitor {
 
     private String classname;
     private final RSymbols rSymbols;
-    static final Pattern rClassPattern = Pattern.compile("^(\\w+/)+R\\$[a-z]+");
+
+    /**
+     * @return true if name matches pattern like {@code .+/R$.+}
+     */
+    static boolean isRClass(String className) {
+        int $ = className.lastIndexOf('$');
+        int slash = className.lastIndexOf('/', $);
+        return $ > slash && $ < className.length() && (className.charAt(slash + 1) | className.charAt($ - 1)) == 'R';
+    }
 
     ShrinkRClassVisitor(ClassWriter cv, RSymbols rSymbols) {
         super(Opcodes.ASM5, cv);
@@ -57,7 +63,7 @@ class ShrinkRClassVisitor extends ClassVisitor {
     @Override
     public void visitInnerClass(String name, String outerName, String innerName, int access) {
         if (access == 0x19 /*ACC_PUBLIC | ACC_STATIC | ACC_FINAL*/
-                && rClassPattern.matcher(name).matches()) {
+                && isRClass(name)) {
             logger.debug("remove visit inner class {} in {}", name, classname);
             return;
         }

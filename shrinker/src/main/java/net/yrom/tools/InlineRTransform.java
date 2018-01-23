@@ -96,9 +96,9 @@ class InlineRTransform extends Transform {
         }
         long start = System.currentTimeMillis();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
-        // ${buildType}/folders/${types-name}/${scopes-name}/styleables
+        // transforms/${name}/${buildType}/${index of 'styleables'}
         File styleables = outputProvider.getContentLocation("styleables", this.getInputTypes(), this.getScopes(), Format.DIRECTORY);
-        String buildType = styleables.getParentFile().getParentFile().getParentFile().getParentFile().getName();
+        String buildType = styleables.getParentFile().getName();
         outputProvider.deleteAll();
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         if (config.inlineR && !Objects.equals(buildType, "debug")) {

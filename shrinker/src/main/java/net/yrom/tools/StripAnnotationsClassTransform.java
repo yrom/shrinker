@@ -26,7 +26,6 @@ import org.objectweb.asm.Opcodes;
 
 import java.util.function.Function;
 
-import static org.objectweb.asm.ClassReader.SKIP_CODE;
 import static org.objectweb.asm.ClassReader.SKIP_DEBUG;
 import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
 
@@ -39,7 +38,7 @@ class StripAnnotationsClassTransform implements Function<byte[], byte[]> {
 
         ClassReader reader = new ClassReader(origin);
         AnnotationsVisitor precondition = new AnnotationsVisitor();
-        reader.accept(precondition, SKIP_DEBUG | SKIP_FRAMES | SKIP_CODE);
+        reader.accept(precondition, SKIP_DEBUG | SKIP_FRAMES);
         if (!precondition.needStripAnnotations) {
             return origin;
         }

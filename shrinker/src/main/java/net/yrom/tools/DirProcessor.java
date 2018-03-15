@@ -26,19 +26,29 @@ import java.util.function.Function;
 
 /**
  * @author yrom
- * @version 2017/11/29
+ * @version 2018/03/15
  */
 class DirProcessor extends ClassesProcessor {
     private static PathMatcher CASE_R_FILE =
             FileSystems.getDefault().getPathMatcher("regex:^R\\.class|R\\$[a-z]+\\.class$");
 
-    private static DirectoryStream.Filter<Path> CLASS_TRANSFORM_FILTER =
+    static DirectoryStream.Filter<Path> CLASS_TRANSFORM_FILTER =
             path -> Files.isDirectory(path)
                     || (Files.isRegularFile(path)
                     && !CASE_R_FILE.matches(path.getFileName()));
 
-    DirProcessor(Function<byte[], byte[]> classTransform, Path src, Path dst) {
+    private static DirectoryStream.Filter<Path> ALL = path -> true;
+
+    private DirectoryStream.Filter<Path> filter;
+
+    /**
+     * @param pathFilter filter for resolve source files
+     * @see Files#newDirectoryStream(Path, DirectoryStream.Filter)
+     */
+    DirProcessor(Function<byte[], byte[]> classTransform, Path src, Path dst,
+                 DirectoryStream.Filter<Path> pathFilter) {
         super(classTransform, src, dst);
+        this.filter = pathFilter == null ? ALL : pathFilter;
     }
 
     @Override
@@ -55,7 +65,7 @@ class DirProcessor extends ClassesProcessor {
         String name = source.getFileName().toString();
         Path target = dst.resolve(name);
         if (Files.isDirectory(source)) {
-            new DirProcessor(classTransform, source, target).proceed();
+            new DirProcessor(classTransform, source, target, filter).proceed();
         } else if (Files.isRegularFile(source)) {
             log.debug("transform file {}... ", source);
             try {
@@ -80,7 +90,7 @@ class DirProcessor extends ClassesProcessor {
 
     private List<Path> resolveSources() {
         ImmutableList.Builder<Path> list = ImmutableList.builder();
-        try (DirectoryStream<Path> dir = Files.newDirectoryStream(src, CLASS_TRANSFORM_FILTER)) {
+        try (DirectoryStream<Path> dir = Files.newDirectoryStream(src, filter)) {
             for (Path file : dir) {
                 list.add(file);
             }

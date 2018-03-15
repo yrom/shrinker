@@ -20,4 +20,5 @@ package net.yrom.tools;
  */
 public class ShrinkerExtension {
     public boolean inlineR = true;
+    public boolean stripAnnotations = false;
 }

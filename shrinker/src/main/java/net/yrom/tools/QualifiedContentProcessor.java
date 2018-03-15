@@ -19,6 +19,7 @@ package net.yrom.tools;
 import com.android.build.api.transform.QualifiedContent;
 import com.android.build.api.transform.TransformInput;
 
+import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.function.Function;
@@ -28,17 +29,30 @@ import java.util.stream.Stream;
 /**
  * @author yrom
  */
-final class InlineRProcessor implements Processor {
+final class QualifiedContentProcessor implements Processor {
     private Collection<TransformInput> inputs;
     private Function<QualifiedContent, Path> getTargetPath;
     private Function<byte[], byte[]> transform;
+    private DirectoryStream.Filter<Path> pathFilter;
 
-    InlineRProcessor(Collection<TransformInput> inputs,
-                     Function<byte[], byte[]> transform,
-                     Function<QualifiedContent, Path> getTargetPath) {
+    QualifiedContentProcessor(Collection<TransformInput> inputs,
+                              Function<byte[], byte[]> transform,
+                              Function<QualifiedContent, Path> getTargetPath) {
+        this(inputs, transform, getTargetPath, null);
+    }
+
+    /**
+     *
+     * @param pathFilter for {@link DirProcessor#DirProcessor(Function, Path, Path, DirectoryStream.Filter)}
+     */
+    QualifiedContentProcessor(Collection<TransformInput> inputs,
+                              Function<byte[], byte[]> transform,
+                              Function<QualifiedContent, Path> getTargetPath,
+                              DirectoryStream.Filter<Path> pathFilter) {
         this.inputs = inputs;
         this.getTargetPath = getTargetPath;
         this.transform = transform;
+        this.pathFilter = pathFilter;
     }
 
     @Override
@@ -47,7 +61,7 @@ final class InlineRProcessor implements Processor {
                 streamOf(inputs, TransformInput::getDirectoryInputs).map(input -> {
                     Path src = input.getFile().toPath();
                     Path dst = getTargetPath.apply(input);
-                    return new DirProcessor(transform, src, dst);
+                    return new DirProcessor(transform, src, dst, pathFilter);
                 }),
                 streamOf(inputs, TransformInput::getJarInputs).map(input -> {
                     Path src = input.getFile().toPath();

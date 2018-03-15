@@ -1,6 +1,7 @@
 buildscript {
     ext {
         enableShrinker = project.hasProperty('ENABLE_SHRINKER')
+        kotlin_version = '1.2.21'
     }
     repositories {
         mavenLocal()
@@ -9,15 +10,20 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.0.0'
+        classpath 'com.android.tools.build:gradle:3.0.1'
         classpath 'com.getkeepsafe.dexcount:dexcount-gradle-plugin:0.8.2'
-        if (enableShrinker) classpath 'net.yrom:shrinker:0.2.7'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        if (enableShrinker) classpath 'net.yrom:shrinker:0.3.0-strip-annotations'
     }
 }
 
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 if (enableShrinker) {
     apply plugin: 'net.yrom.shrinker'
+    shrinker {
+        stripAnnotations = false
+    }
 }
 android {
     compileSdkVersion 26
@@ -53,6 +59,7 @@ dependencies {
     implementation 'com.android.support:design:26.1.0'
     implementation 'com.android.support:recyclerview-v7:26.1.0'
     implementation 'com.android.support:cardview-v7:26.1.0'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 }
 
 apply plugin: 'com.getkeepsafe.dexcount'

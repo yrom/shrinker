@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Yrom Wang
+ * Copyright (c) 2018 Yrom Wang
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,25 +35,32 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
 import static com.android.build.api.transform.QualifiedContent.DefaultContentType.CLASSES;
 
 /**
- * Transform classes with {@link QualifiedContentProcessor}.
+ * Strip annotations which are useless in runtime.
+ *
+ * e.g. @kotlin.Metadata, @kotlin.jvm.JvmStatic, @org.jetbrains.annotations.NotNull, etc.
+ *
+ * <br/>
+ *
+ * NOTE: It's a experiment feature may cause some unexpected issues
+ *
+ * @author yrom
  */
-class InlineRTransform extends Transform {
+class StripAnnotationsTransform extends Transform {
     private final ShrinkerExtension config;
 
-    InlineRTransform(ShrinkerExtension config) {
+    StripAnnotationsTransform(ShrinkerExtension config) {
         this.config = config;
     }
 
     @Override
     public String getName() {
-        return "inlineR";
+        return "stripAnnotations";
     }
 
     @Override
@@ -63,7 +70,7 @@ class InlineRTransform extends Transform {
 
     @Override
     public Set<? super QualifiedContent.Scope> getScopes() {
-        if (!config.inlineR) // empty scope
+        if (!config.stripAnnotations) // empty scope
             return ImmutableSet.of();
         // full
         return Sets.immutableEnumSet(
@@ -74,7 +81,7 @@ class InlineRTransform extends Transform {
 
     @Override
     public Set<? super QualifiedContent.Scope> getReferencedScopes() {
-        if (config.inlineR) // empty
+        if (config.stripAnnotations) // empty
             return ImmutableSet.of();
         return Sets.immutableEnumSet(QualifiedContent.Scope.PROJECT);
     }
@@ -87,8 +94,8 @@ class InlineRTransform extends Transform {
 
     @Override
     public void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
-        if (!config.inlineR) {
-            ShrinkerPlugin.logger.lifecycle("skip inlineR transform!");
+        if (!config.stripAnnotations) {
+            ShrinkerPlugin.logger.lifecycle("skip stripAnnotations transform!");
             return;
         }
         if (transformInvocation.isIncremental()) {
@@ -96,33 +103,25 @@ class InlineRTransform extends Transform {
         }
         long start = System.currentTimeMillis();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
-        // transforms/${name}/${buildType}/${index of 'styleables'}
-        File styleables = outputProvider.getContentLocation("styleables", this.getInputTypes(), this.getScopes(), Format.DIRECTORY);
-        String buildType = styleables.getParentFile().getName();
-        outputProvider.deleteAll();
+
         Collection<TransformInput> inputs = transformInvocation.getInputs();
-        if (config.inlineR && !Objects.equals(buildType, "debug")) {
-            RSymbols rSymbols = new RSymbols().from(inputs);
-            if (!rSymbols.isEmpty()) {
-                new WriteStyleablesProcessor(rSymbols, styleables).proceed();
-                Function<QualifiedContent, Path> call = input -> {
-                    Format format;
-                    if (input instanceof DirectoryInput) {
-                        format = Format.DIRECTORY;
-                    } else if (input instanceof JarInput) {
-                        format = Format.JAR;
-                    } else {
-                        throw new UnsupportedOperationException("Unknown format readAll input " + input);
-                    }
-                    File f = outputProvider.getContentLocation(input.getName(), input.getContentTypes(),
-                            input.getScopes(), format);
-                    if (!f.getParentFile().exists()) f.getParentFile().mkdirs();
-                    return f.toPath();
-                };
-                new QualifiedContentProcessor(inputs, new InlineRClassTransform(rSymbols), call, DirProcessor.CLASS_TRANSFORM_FILTER).proceed();
-                ShrinkerPlugin.logger.lifecycle("{} consume {}ms", transformInvocation.getContext().getPath(), System.currentTimeMillis() - start);
-                return;
-            }
+        if (config.stripAnnotations) {
+            Function<QualifiedContent, Path> call = input -> {
+                Format format;
+                if (input instanceof DirectoryInput) {
+                    format = Format.DIRECTORY;
+                } else if (input instanceof JarInput) {
+                    format = Format.JAR;
+                } else {
+                    throw new UnsupportedOperationException("Unknown format readAll input " + input);
+                }
+                File f = outputProvider.getContentLocation(input.getName(), input.getContentTypes(),
+                        input.getScopes(), format);
+                if (!f.getParentFile().exists()) f.getParentFile().mkdirs();
+                return f.toPath();
+            };
+            new QualifiedContentProcessor(inputs, new StripAnnotationsClassTransform(), call).proceed();
+            return;
         }
         // just copy them...
         for (TransformInput input : inputs) {
@@ -151,5 +150,4 @@ class InlineRTransform extends Transform {
         }
         ShrinkerPlugin.logger.info("{} copy files {} ms", transformInvocation.getContext().getPath(), System.currentTimeMillis() - start);
     }
-
 }

@@ -28,10 +28,10 @@ import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
 /**
  * @author yrom
  */
-class ClassTransform implements Function<byte[], byte[]> {
+class InlineRClassTransform implements Function<byte[], byte[]> {
     private RSymbols rSymbols;
 
-    ClassTransform(RSymbols rSymbols) {
+    InlineRClassTransform(RSymbols rSymbols) {
         this.rSymbols = rSymbols;
     }
 

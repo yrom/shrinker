@@ -2,6 +2,8 @@
 
 `Shrinker` will remove all R.class and R\$\*\*.class  and all constant integer fields will be inlined by [`asm`](http://asm.ow2.org/) and [`transform-api`](http://tools.android.com/tech-docs/new-build-system/transform-api). 
 
+*I have post more details on my own blog (in Chinese), [click here](http://yrom.net/blog/2018/01/12/android-gradle-plugin-for-shrinking-fields-in-dex/) to check it out.*
+
 ## Usage 
 
 ![version](https://jitpack.io/v/net.yrom/shrinker.svg?style=flat-square) You can get `shrinker` from [jitpack](https://jitpack.io)
@@ -32,7 +34,7 @@ apply plugin: 'net.yrom.shrinker'
 **NOTE** that `shrinker` plugin requires android gradle build tools version at least 3.0.0 and it will be disabled if run in debug build.
 
 ### Show case
-There is a little [test](tree/master/test) application which depends on so many support libraries, would show how many fields `shrinked`. 
+There is a small [test](tree/master/test) application which depends on so many support libraries, would show how many fields `shrinked`. 
 
 Run with `shrinker`:
 ```
